@@ -1,0 +1,21 @@
+{
+    "name": "bug-tracker-monorepo",
+    "version": "1.0.0",
+    "description": "Production-Ready Bug Tracking System (MERN + AI)",
+    "private": true,
+    "scripts": {
+        "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+        "dev:server": "cd server && npm run dev",
+        "dev:client": "cd client && npm run dev",
+        "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+        "seed": "cd server && npm run seed",
+        "build": "cd client && npm run build",
+        "test": "concurrently \"npm run test:server\" \"npm run test:client\"",
+        "test:server": "cd server && npm run test",
+        "test:client": "cd client && npm run test"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "nodemon": "^3.1.0"
+    }
+}

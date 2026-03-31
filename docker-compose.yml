@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  server:
+    build:
+      context: ./server
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/bugsphere
+      - JWT_SECRET=your_jwt_secret_here
+      - NODE_ENV=production
+      - OPENROUTER_API_KEY=YOUR_OPENROUTER_KEY
+    depends_on:
+      - mongodb
+    networks:
+      - bugsphere-network
+
+  client:
+    build:
+      context: ./client
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+    networks:
+      - bugsphere-network
+
+networks:
+  bugsphere-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

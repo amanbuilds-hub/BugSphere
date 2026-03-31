@@ -1,0 +1,46 @@
+name: BugSphere AI - CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Root Install
+      run: npm install
+
+    - name: Backend Build & Test (placeholder)
+      run: |
+        cd server
+        npm install
+        # npm test (implement tests)
+
+    - name: Frontend Build
+      run: |
+        cd client
+        npm install
+        npm run build
+
+    # Docker Build Step
+    #- name: Build and Push Docker Image
+    #  uses: docker/build-push-action@v2
+    #  with:
+    #    push: true
+    #    tags: user/bugsphere-client:latest
