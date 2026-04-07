@@ -16,6 +16,8 @@ const Settings = () => {
     const [profile, setProfile] = useState({
         name: auth.user?.name || '',
         email: auth.user?.email || '',
+        skills: auth.user?.skills?.join(', ') || '',
+        about: auth.user?.about || '',
         notificationPrefs: auth.user?.notificationPrefs || { email: true, push: true, digest: false }
     });
 
@@ -24,6 +26,8 @@ const Settings = () => {
             setProfile({
                 name: auth.user.name,
                 email: auth.user.email,
+                skills: auth.user.skills?.join(', ') || '',
+                about: auth.user.about || '',
                 notificationPrefs: auth.user.notificationPrefs || { email: true, push: true, digest: false }
             });
         }
@@ -34,7 +38,9 @@ const Settings = () => {
         setLoading(true);
         setError('');
         try {
-            const res = await updateProfile(profile);
+            // Clean skills array
+            const skillsArray = profile.skills.split(',').map(s => s.trim()).filter(s => s !== '');
+            const res = await updateProfile({ ...profile, skills: skillsArray });
             setAuth(prev => ({ ...prev, user: { ...prev.user, ...res.data } }));
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
@@ -147,6 +153,26 @@ const Settings = () => {
                                             onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                                             className="w-full bg-slate-50 dark:bg-secondary-900 border border-slate-200 dark:border-slate-800 rounded-xl py-3 px-4 outline-none focus:border-primary-500 transition-all font-medium"
                                         />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500 ml-1 uppercase">Skills (comma separated)</label>
+                                        <input
+                                            type="text"
+                                            value={profile.skills}
+                                            onChange={(e) => setProfile({ ...profile, skills: e.target.value })}
+                                            placeholder="React, Node.js, MongoDB..."
+                                            className="w-full bg-slate-50 dark:bg-secondary-900 border border-slate-200 dark:border-slate-800 rounded-xl py-3 px-4 outline-none focus:border-primary-500 transition-all font-medium"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500 ml-1 uppercase">About Yourself / Experience</label>
+                                        <textarea
+                                            value={profile.about}
+                                            onChange={(e) => setProfile({ ...profile, about: e.target.value })}
+                                            rows={4}
+                                            placeholder="I am a frontend developer with 3 years of experience..."
+                                            className="w-full bg-slate-50 dark:bg-secondary-900 border border-slate-200 dark:border-slate-800 rounded-xl py-3 px-4 outline-none focus:border-primary-500 transition-all font-medium resize-none"
+                                        ></textarea>
                                     </div>
                                     <div className="space-y-2 opacity-50">
                                         <label className="text-xs font-bold text-slate-500 ml-1 uppercase">Email Address (Cannot change)</label>

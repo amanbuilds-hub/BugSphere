@@ -15,7 +15,7 @@ export const recommendAssignee = async (bugId) => {
         if (!bug) return [];
 
         const developers = await User.find({ role: 'developer', isActive: true })
-            .select('name skills activeIssueCount email _id');
+            .select('name skills about activeIssueCount email _id');
 
         if (developers.length === 0) return [];
 
@@ -24,7 +24,7 @@ Severity/Priority: ${bug.severity}/${bug.priority}
 Tags: ${bug.tags.join(', ')}
 
 Developers:
-${developers.map(d => `- ${d.name} (Skills: ${d.skills.join(', ')}, Active Bugs: ${d.activeIssueCount}) (ID: ${d._id})`).join('\n')}
+${developers.map(d => `- ${d.name} (Skills: ${d.skills.join(', ')}, Bio: ${d.about}, Active Bugs: ${d.activeIssueCount}) (ID: ${d._id})`).join('\n')}
 
 Recommend the best developer for this bug based on:
 1. Skill match (40%)

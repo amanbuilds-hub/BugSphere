@@ -112,3 +112,24 @@ export const removeProjectMember = asyncHandler(async (req, res) => {
 
     res.status(200).json({ success: true, data: project });
 });
+
+/**
+ * @desc    Delete project and its bugs
+ * @route   DELETE /api/projects/:id
+ * @access  Admin
+ */
+export const deleteProject = asyncHandler(async (req, res) => {
+    const project = await Project.findById(req.params.id);
+    if (!project) throw new ApiError(404, 'PROJ_001', 'Project not found');
+
+    // Delete all bugs associated with this project
+    await Bug.deleteMany({ projectId: project._id });
+
+    // Delete the project
+    await Project.findByIdAndDelete(project._id);
+
+    // Trigger Notification (Optional: Notify all members that project is deleted)
+    // notificationService.trigger('project:deleted', project._id, req.user._id, { projectName: project.name });
+
+    res.status(200).json({ success: true, message: 'Project and all associated bugs deleted successfully' });
+});

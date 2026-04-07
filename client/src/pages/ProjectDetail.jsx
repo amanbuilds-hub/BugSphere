@@ -1,20 +1,35 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProject, addMember, removeMember } from '../api/projects.api';
+import { getProject, addMember, removeMember, deleteProject } from '../api/projects.api';
 import { getUsers } from '../api/auth.api';
 import { authAtom } from '../atoms/auth.atom';
 import { useRecoilValue } from 'recoil';
 import {
     Users, Bug, ChevronLeft, Search, Plus, Trash2,
-    Shield, Briefcase, User as UserIcon, Loader2
+    Shield, Briefcase, User as UserIcon, Loader2, AlertTriangle
 } from 'lucide-react';
 
 const ProjectDetail = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
     const auth = useRecoilValue(authAtom);
     const queryClient = useQueryClient();
     const [userSearch, setUserSearch] = useState('');
+
+    const deleteProjectMutation = useMutation({
+        mutationFn: () => deleteProject(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries(['projects']);
+            navigate('/projects');
+        }
+    });
+
+    const handleDeleteProject = () => {
+        if (window.confirm('Are you sure you want to delete this project and all its associated bugs? This action cannot be undone.')) {
+            deleteProjectMutation.mutate();
+        }
+    };
 
     const { data: projectData, isLoading: projectLoading } = useQuery({
         queryKey: ['projects', id],
@@ -77,6 +92,16 @@ const ProjectDetail = () => {
                                 <Plus size={14} className="mr-1.5" />
                                 Report Bug
                             </Link>
+                        )}
+                        {auth.user?.role === 'admin' && (
+                            <button
+                                onClick={handleDeleteProject}
+                                disabled={deleteProjectMutation.isLoading}
+                                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-black uppercase flex items-center border border-red-500 shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                                {deleteProjectMutation.isLoading ? <Loader2 className="animate-spin mr-1.5" size={14} /> : <Trash2 size={14} className="mr-1.5" />}
+                                Delete Project
+                            </button>
                         )}
                     </div>
                 </div>
@@ -154,7 +179,7 @@ const ProjectDetail = () => {
                                         )}
                                     </tr>
                                 ))}
-                            </tbody>     
+                            </tbody>
                         </table>
                     </div>
                 </div>

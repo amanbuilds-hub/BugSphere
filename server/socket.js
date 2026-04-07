@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import User from './models/User.js';
 import logger from './utils/logger.js';
 
+let ioInstance;
+
 /**
  * Socket.io Initializer
  * @param {import('http').Server} httpServer
@@ -66,7 +68,15 @@ const initSocket = (httpServer) => {
         });
     });
 
+    ioInstance = io;
     return io;
+};
+
+export const getIO = () => {
+    if (!ioInstance) {
+        throw new Error('Socket.io not initialized!');
+    }
+    return ioInstance;
 };
 
 export default initSocket;

@@ -12,10 +12,15 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { useSocket } from '../hooks/useSocket';
+import { useQueryClient } from '@tanstack/react-query';
+
 const BugDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const auth = useRecoilValue(authAtom);
+    const queryClient = useQueryClient();
+    const { on, emit } = useSocket();
     const { bugDetail, loadingDetail, statusMutation, commentMutation, assignMutation, deleteMutation } = useBugs(id);
     const { sendMessage, chatHistory, fetchResolutionSuggestion, loading: aiLoading } = useAI(id);
 
@@ -23,6 +28,23 @@ const BugDetail = () => {
     const [chatMessage, setChatMessage] = useState('');
     const [aiSuggestion, setAiSuggestion] = useState(null);
     const [isAssigning, setIsAssigning] = useState(false);
+
+    // Socket: Join bug room and listen for updates
+    useEffect(() => {
+        if (id) {
+            emit('joinBug', id);
+
+            on('bug:updated', (data) => {
+                if (data._id === id) {
+                    queryClient.invalidateQueries(['bug', id]);
+                }
+            });
+
+            return () => {
+                emit('leaveBug', id);
+            };
+        }
+    }, [id, emit, on, queryClient]);
 
     if (loadingDetail) return <div className="animate-pulse space-y-6">
         <div className="h-8 w-1/3 bg-slate-200 dark:bg-slate-800 rounded"></div>

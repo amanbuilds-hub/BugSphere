@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { createProject, getProjects, getProjectById, addProjectMember, removeProjectMember } from '../controllers/project.controller.js';
+import { createProject, getProjects, getProjectById, addProjectMember, removeProjectMember, deleteProject } from '../controllers/project.controller.js';
 import authenticate from '../middleware/authenticate.js';
 import authorize from '../middleware/authorize.js';
 import validate from '../middleware/validate.js';
@@ -24,6 +24,7 @@ router.use(authenticate);
 router.post('/', authorize('admin'), apiLimiter, validate(createProjectSchema), createProject);
 router.get('/', getProjects);
 router.get('/:id', getProjectById);
+router.delete('/:id', authorize('admin'), deleteProject);
 
 router.post('/:id/members', authorize('admin'), validate(memberSchema), addProjectMember);
 router.delete('/:id/members/:uid', authorize('admin'), removeProjectMember);

@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Project from '../models/Project.js';
 import { sendMail } from './email.js';
 import { callAI } from './openrouter.js';
+import { getIO } from '../socket.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -78,10 +79,29 @@ Format your response as a JSON object: { "subject": "...", "body": "..." }`;
                 }))
             });
 
-            // 5. Send Emails
+            // 5. Send Emails & Socket Events
+            const io = getIO();
             for (const recipient of recipients) {
+                // Email
                 await sendMail(recipient.email, emailContent.subject, `<p>${emailContent.body.replace(/\n/g, '<br>')}</p>`);
+
+                // Socket: Send to individual user room
+                io.to(`user:${recipient._id}`).emit('notification:new', {
+                    _id: notification._id,
+                    eventType,
+                    actorName,
+                    payload,
+                    subject: emailContent.subject,
+                    createdAt: notification.createdAt
+                });
             }
+
+            // Optional: Broadcast broad update to project room
+            io.to(`project:${projectId}`).emit('project:activity', {
+                eventType,
+                actorName,
+                bugId: payload.bugId
+            });
 
             logger.info(`Notification triggered for event: ${eventType}`);
         } catch (error) {

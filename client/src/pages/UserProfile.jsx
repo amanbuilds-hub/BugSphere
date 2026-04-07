@@ -15,14 +15,21 @@ const UserProfile = () => {
     const { register, handleSubmit, formState: { errors } } = useForm({
         defaultValues: {
             name: user?.name || '',
-            email: user?.email || ''
+            email: user?.email || '',
+            about: user?.about || '',
+            skills: user?.skills?.join(', ') || ''
         }
     });
 
     const onSubmit = async (data) => {
         setLoading(true);
         try {
-            const res = await updateProfile(data);
+            // Convert skills string back to array
+            const skillsArray = typeof data.skills === 'string'
+                ? data.skills.split(',').map(s => s.trim()).filter(s => s !== '')
+                : data.skills;
+
+            const res = await updateProfile({ ...data, skills: skillsArray });
             setAuth(prev => ({ ...prev, user: { ...prev.user, ...res.data } }));
             setIsEditing(false);
         } catch (err) {
@@ -49,11 +56,6 @@ const UserProfile = () => {
                             <span className="capitalize">{user.role} Engineer</span>
                         </p>
                         <div className="flex items-center space-x-3 pt-2 text-xs font-black uppercase tracking-widest text-slate-400">
-                            <p className="flex items-center space-x-1">
-                                <Shield size={14} className="text-primary-500" />
-                                <span>{user.twoFactorEnabled ? '2FA Active' : '2FA Disabled'}</span>
-                            </p>
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700"></span>
                             <p className="flex items-center space-x-1">
                                 <Calendar size={14} className="text-primary-500" />
                                 <span>Joined {new Date(user.createdAt || Date.now()).toLocaleDateString()}</span>
@@ -105,7 +107,7 @@ const UserProfile = () => {
                         </h3>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                            <div className="space-y-1">
+                            <div className="space-y-1 sm:col-span-2">
                                 <p className="text-xs font-black uppercase text-slate-400 tracking-tighter ml-1">Full Name</p>
                                 {isEditing ? (
                                     <input
@@ -117,7 +119,7 @@ const UserProfile = () => {
                                 )}
                                 {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-1 sm:col-span-2">
                                 <p className="text-xs font-black uppercase text-slate-400 tracking-tighter ml-1">Email ID</p>
                                 {isEditing ? (
                                     <input
@@ -125,9 +127,37 @@ const UserProfile = () => {
                                         className="w-full bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800 outline-none focus:ring-2 focus:ring-primary-500"
                                     />
                                 ) : (
-                                    <div className="bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800">{user.email}</div>
+                                    <div className="bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800 overflow-x-auto whitespace-nowrap scrollbar-hide">{user.email}</div>
                                 )}
                                 {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-xs font-black uppercase text-slate-400 tracking-tighter ml-1">Technical Skills</p>
+                                {isEditing ? (
+                                    <input
+                                        {...register('skills')}
+                                        placeholder="React, Node.js, etc."
+                                        className="w-full bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800 outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                ) : (
+                                    <div className="bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800">
+                                        {user.skills?.length > 0 ? user.skills.join(', ') : 'No skills listed'}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="space-y-1 sm:col-span-2">
+                                <p className="text-xs font-black uppercase text-slate-400 tracking-tighter ml-1">About / Bio</p>
+                                {isEditing ? (
+                                    <textarea
+                                        {...register('about')}
+                                        rows={3}
+                                        className="w-full bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800 outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                                    ></textarea>
+                                ) : (
+                                    <div className="bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800 min-h-[60px]">
+                                        {user.about || 'Tell us about yourself...'}
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-1">
                                 <p className="text-xs font-black uppercase text-slate-400 tracking-tighter ml-1">Assigned Role</p>

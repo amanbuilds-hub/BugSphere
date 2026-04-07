@@ -1,6 +1,8 @@
 import express from 'express';
 import { z } from 'zod';
+import User from '../models/User.js';
 import { register, login, refresh, logout, getUsers } from '../controllers/auth.controller.js';
+import ApiError from '../utils/ApiError.js';
 import authenticate from '../middleware/authenticate.js';
 import authorize from '../middleware/authorize.js';
 import validate from '../middleware/validate.js';
@@ -33,9 +35,18 @@ router.get('/profile', authenticate, (req, res) => {
 });
 
 router.patch('/profile', authenticate, async (req, res) => {
-    const { name, skills, notificationPrefs } = req.body;
+    const { name, email, skills, about, notificationPrefs } = req.body;
+
+    // Check if new email is already taken
+    if (email && email !== req.user.email) {
+        const emailExists = await User.findOne({ email });
+        if (emailExists) throw new ApiError(400, 'AUTH_001', 'Email is already in use by another account');
+        req.user.email = email;
+    }
+
     if (name) req.user.name = name;
     if (skills) req.user.skills = skills;
+    if (about !== undefined) req.user.about = about;
     if (notificationPrefs) req.user.notificationPrefs = { ...req.user.notificationPrefs.toObject(), ...notificationPrefs };
 
     await req.user.save();

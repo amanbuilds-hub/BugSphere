@@ -9,6 +9,7 @@ import { detectDuplicate } from '../services/ai/detectDuplicate.js';
 import { recommendAssignee as aiRecommendAssignee } from '../services/ai/recommendAssignee.js';
 import { summarizeBug } from '../services/ai/summarizeBug.js';
 import { suggestResolution } from '../services/ai/suggestResolution.js';
+import { getIO } from '../socket.js';
 import exportService from '../services/export.js';
 import logger from '../utils/logger.js';
 
@@ -57,12 +58,21 @@ export const createBug = asyncHandler(async (req, res) => {
     await Project.findByIdAndUpdate(projectId, { $inc: { bugCount: 1 } });
 
     // 5. Async AI Processing (Classify)
-    // classifyBug(bug._id); // Don't await, let it run in background
+    classifyBug(bug._id); // Don't await, let it run in background
 
     // 6. Trigger Notification
     notificationService.trigger('bug:created', projectId, req.user._id, {
         bugId: bug._id,
         bugTitle: bug.title
+    });
+
+    // 7. Real-time Socket Update
+    const io = getIO();
+    io.to(`project:${projectId}`).emit('bug:created', {
+        _id: bug._id,
+        title: bug.title,
+        severity: bug.severity,
+        status: bug.status
     });
 
     res.status(201).json({
@@ -218,6 +228,12 @@ export const updateBugStatus = asyncHandler(async (req, res) => {
         to: requestedStatus,
         note
     });
+
+    // 6. Real-time Socket Update
+    const io = getIO();
+    const updateData = { _id: bug._id, status: requestedStatus, statusHistory: bug.statusHistory };
+    io.to(`project:${bug.projectId}`).emit('bug:updated', updateData);
+    io.to(`bug:${bug._id}`).emit('bug:updated', updateData);
 
     res.status(200).json({ success: true, data: bug });
 });

@@ -29,6 +29,11 @@ const userSchema = new mongoose.Schema({
     skills: [{
         type: String,
     }],
+    about: {
+        type: String,
+        trim: true,
+        default: '',
+    },
     activeIssueCount: {
         type: Number,
         default: 0,

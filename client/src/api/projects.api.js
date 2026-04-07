@@ -27,3 +27,8 @@ export const removeMember = async (id, uid) => {
     const response = await apiClient.delete(`/projects/${id}/members/${uid}`);
     return response.data;
 };
+
+export const deleteProject = async (id) => {
+    const response = await apiClient.delete(`/projects/${id}`);
+    return response.data;
+};
