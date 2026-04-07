@@ -5,13 +5,14 @@ import { z } from 'zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBugs } from '../hooks/useBugs';
 import { useQuery } from '@tanstack/react-query';
-import { getProjects } from '../api/projects.api';
-import { Bug, Send, X, Plus, AlertCircle, FileText, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { getProjects, getProject } from '../api/projects.api';
+import { Bug, Send, X, Plus, AlertCircle, FileText, CheckCircle2, Loader2, Sparkles, UserCheck } from 'lucide-react';
 
 const createBugSchema = z.object({
     title: z.string().min(5, 'Title must be at least 5 characters'),
     description: z.string().min(10, 'Description must be at least 10 characters'),
     projectId: z.string().min(1, 'Please select a project'),
+    assignedTo: z.string().optional(),
     severity: z.enum(['critical', 'high', 'medium', 'low']),
     priority: z.enum(['urgent', 'high', 'normal', 'low']),
     stepsToReproduce: z.string().optional(),
@@ -28,32 +29,53 @@ const CreateBug = () => {
 
     const navigate = useNavigate();
     const { createMutation } = useBugs();
-    const { data: projectsData } = useQuery(['projects'], getProjects);
+    const { data: projectsData } = useQuery({
+        queryKey: ['projects'],
+        queryFn: getProjects
+    });
 
     const { register, handleSubmit, formState: { errors }, watch } = useForm({
         resolver: zodResolver(createBugSchema),
         defaultValues: {
             projectId: searchParams.get('projectId') || '',
             severity: 'medium',
+            assignedTo: '',
             priority: 'normal'
         }
     });
 
+    const selectedProjectId = watch('projectId');
+    const { data: projectDetail } = useQuery({
+        queryKey: ['projects', selectedProjectId],
+        queryFn: () => getProject(selectedProjectId),
+        enabled: !!selectedProjectId
+    });
+
+    const developers = projectDetail?.data?.project?.members?.filter(m => m.userId.role === 'developer') || [];
+
     const onSubmit = async (data) => {
         setLoading(true);
         try {
-            const res = await createMutation.mutateAsync({ ...data, tags });
-            if (res.message.includes('duplicate')) {
-                setDuplicateWarning(res.message);
+            const sendData = { ...data, tags };
+            if (!sendData.assignedTo) delete sendData.assignedTo;
+            const res = await createMutation.mutateAsync(sendData);
+
+            const message = res?.message || '';
+            if (message.toLowerCase().includes('duplicate')) {
+                setDuplicateWarning(message);
             } else {
-                navigate(`/bugs/${res.data._id}`);
+                navigate(`/bugs/${res?.data?._id}`);
             }
         } catch (err) {
-            console.error(err);
+            console.error('Submission error:', err);
+            const errMsg = err.response?.data?.message || err.message || 'Failed to report bug';
+            alert(`Error: ${errMsg}`);
         } finally {
             setLoading(false);
         }
     };
+
+    const hasErrors = Object.keys(errors).length > 0;
 
     const addTag = (e) => {
         e.preventDefault();
@@ -178,6 +200,23 @@ const CreateBug = () => {
                                     <option value="low">Low (Backlog)</option>
                                 </select>
                             </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-black uppercase text-slate-400">Assign To</label>
+                                <select
+                                    {...register('assignedTo')}
+                                    disabled={!selectedProjectId}
+                                    className="w-full bg-white dark:bg-secondary-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/50 font-bold disabled:opacity-50"
+                                >
+                                    <option value="">Select Developer (Optional)</option>
+                                    {developers.map(dev => (
+                                        <option key={dev.userId._id} value={dev.userId._id}>
+                                            {dev.userId.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {!selectedProjectId && <p className="text-[10px] text-slate-400 italic">Select a project first to see developers</p>}
+                            </div>
                         </div>
 
                         <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
@@ -214,10 +253,20 @@ const CreateBug = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-white text-primary-600 font-black py-4 rounded-xl mt-6 transition-all hover:bg-slate-50 flex items-center justify-center space-x-2 active:scale-95 disabled:opacity-50"
+                            className={`w-full ${hasErrors ? 'bg-red-600' : 'bg-white'} ${hasErrors ? 'text-white' : 'text-primary-600'} font-black py-4 rounded-xl mt-6 transition-all hover:opacity-90 flex items-center justify-center space-x-2 active:scale-95 disabled:opacity-50 shadow-xl`}
                         >
-                            {loading ? <Loader2 className="animate-spin" size={20} /> : <><Send size={18} /> <span>Submit Report</span></>}
+                            {loading ? <Loader2 className="animate-spin" size={20} /> : (
+                                <div className="flex items-center space-x-2">
+                                    {hasErrors ? <AlertCircle size={18} /> : <Send size={18} />}
+                                    <span>{hasErrors ? 'Check Errors' : 'Submit Report'}</span>
+                                </div>
+                            )}
                         </button>
+                        {hasErrors && (
+                            <p className="text-[10px] text-center text-red-500 font-bold mt-2 animate-bounce uppercase">
+                                Please correct the errors above before submitting
+                            </p>
+                        )}
                     </div>
                 </div>
             </form>

@@ -1,6 +1,4 @@
 import jwt from 'jsonwebtoken';
-import { authenticator } from 'otplib';
-import QRCode from 'qrcode';
 import User from '../models/User.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -63,6 +61,7 @@ export const register = asyncHandler(async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                notificationPrefs: user.notificationPrefs,
                 isAuthenticated: true
             },
             accessToken,
@@ -79,19 +78,9 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email }).select('+passwordHash +twoFactorSecret');
+    const user = await User.findOne({ email }).select('+passwordHash');
     if (!user || !user.comparePassword(password)) {
         throw new ApiError(401, 'AUTH_001', 'Invalid credentials');
-    }
-
-
-    // Check if 2FA is required
-    if (user.twoFactorEnabled) {
-        return res.status(200).json({
-            success: true,
-            message: '2FA required',
-            data: { twoFactorRequired: true, userId: user._id }
-        });
     }
 
     const accessToken = generateAccessToken(user);
@@ -108,6 +97,7 @@ export const login = asyncHandler(async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                notificationPrefs: user.notificationPrefs,
                 isAuthenticated: true
             },
             accessToken,
@@ -154,61 +144,6 @@ export const refresh = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Setup 2FA
- * @route   POST /api/auth/2fa/setup
- * @access  Private
- */
-export const setup2FA = asyncHandler(async (req, res) => {
-    const secret = authenticator.generateSecret();
-    const uri = authenticator.keyuri(req.user.email, 'BugTracker', secret);
-    const qrDataUrl = await QRCode.toDataURL(uri);
-
-    // Partial save - store secret temporarily
-    req.user.twoFactorSecret = secret;
-    await User.findByIdAndUpdate(req.user._id, { twoFactorSecret: secret });
-
-    res.status(200).json({
-        success: true,
-        data: { secret, qrDataUrl }
-    });
-});
-
-/**
- * @desc    Verify and enable 2FA
- * @route   POST /api/auth/2fa/verify
- * @access  Private/Public (login case)
- */
-export const verify2FA = asyncHandler(async (req, res) => {
-    const { token, userId } = req.body;
-
-    const targetId = userId || req.user?._id;
-    const user = await User.findById(targetId).select('+twoFactorSecret');
-
-    if (!user || (!user.twoFactorSecret && !req.user)) {
-        throw new ApiError(404, 'AUTH_001', 'User not found');
-    }
-
-    const isValid = authenticator.check(token, user.twoFactorSecret);
-    if (!isValid) throw new ApiError(401, 'AUTH_004', 'Invalid 2FA token');
-
-    user.twoFactorEnabled = true;
-
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-    user.refreshTokenFamily.push({ token: refreshToken });
-    await user.save();
-
-    res.status(200).json({
-        success: true,
-        data: {
-            user: { id: user._id, name: user.name, role: user.role, isAuthenticated: true },
-            accessToken,
-            refreshToken
-        }
-    });
-});
-
-/**
  * @desc    Logout
  * @route   POST /api/auth/logout
  * @access  Private
@@ -225,4 +160,23 @@ export const logout = asyncHandler(async (req, res) => {
 
     res.clearCookie('accessToken');
     res.status(200).json({ success: true, message: 'Logged out successfully' });
+});
+/**
+ * @desc    Get all users (searchable)
+ * @route   GET /api/auth/users
+ * @access  Admin
+ */
+export const getUsers = asyncHandler(async (req, res) => {
+    const { search } = req.query;
+    const query = { _id: { $ne: req.user._id } };
+
+    if (search) {
+        query.$or = [
+            { name: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } }
+        ];
+    }
+
+    const users = await User.find(query).select('name email role isActive').limit(20);
+    res.status(200).json({ success: true, data: users });
 });

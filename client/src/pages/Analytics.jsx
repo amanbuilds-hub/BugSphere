@@ -109,18 +109,36 @@ const Analytics = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {bugs.reduce((acc, b) => {
-                                const pName = b.projectId?.name || 'Unknown';
-                                if (!acc[pName]) acc[pName] = { total: 0, open: 0, closed: 0 };
-                                acc[pName].total++;
-                                if (b.status === 'open') acc[pName].open++;
-                                if (b.status === 'closed') acc[pName].closed++;
-                                return acc;
-                            }, [] && {})}
-                            {/* This is a bit simplified for demonstration */}
-                            <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                                <td colSpan={5} className="py-4 text-sm text-slate-400 italic text-center">Project specific breakdown coming soon in next v1.1 update...</td>
-                            </tr>
+                            {(() => {
+                                const stats = bugs.reduce((acc, b) => {
+                                    const pName = b.projectId?.name || 'Unknown';
+                                    if (!acc[pName]) acc[pName] = { total: 0, open: 0, resolved: 0 };
+                                    acc[pName].total++;
+                                    if (b.status === 'open') acc[pName].open++;
+                                    if (b.status === 'closed') acc[pName].resolved++;
+                                    return acc;
+                                }, {});
+
+                                return Object.entries(stats).map(([name, data]) => (
+                                    <tr key={name} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors group">
+                                        <td className="py-4 text-sm font-bold">{name}</td>
+                                        <td className="py-4 text-sm text-slate-500 font-medium">{data.total}</td>
+                                        <td className="py-4 text-sm text-blue-500 font-bold text-center">{data.open}</td>
+                                        <td className="py-4 text-sm text-emerald-500 font-bold text-center">{data.resolved}</td>
+                                        <td className="py-4 text-right">
+                                            <div className="inline-flex items-center space-x-1.5 bg-emerald-50 dark:bg-emerald-950/20 px-2.5 py-1 rounded-lg">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">OPTIMAL</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ));
+                            })()}
+                            {bugs.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="py-10 text-sm text-slate-400 italic text-center uppercase tracking-widest font-black">No analytics data available for this view</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

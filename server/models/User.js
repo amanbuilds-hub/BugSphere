@@ -33,14 +33,6 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
-    twoFactorSecret: {
-        type: String,
-        select: false,
-    },
-    twoFactorEnabled: {
-        type: Boolean,
-        default: false,
-    },
     notificationPrefs: {
         email: { type: Boolean, default: true },
         push: { type: Boolean, default: true },

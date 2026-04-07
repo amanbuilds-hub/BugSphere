@@ -25,7 +25,7 @@ const openRouterClient = axios.create({
 export const callAI = async (prompt, systemMessage = "You are a helpful assistant for a software development bug tracking system.") => {
   try {
     const response = await openRouterClient.post('/chat/completions', {
-      model: 'google/gemma-3-1b-it:free',
+      model: 'google/gemma-3-12b-it',
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: prompt }

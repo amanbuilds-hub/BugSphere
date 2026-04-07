@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { createBug, getBugs, getBugById, updateBugStatus, assignBug, recommendAssignee, suggestBugResolution, exportBugs, addComment } from '../controllers/bug.controller.js';
+import { createBug, getBugs, getBugById, updateBugStatus, assignBug, recommendAssignee, suggestBugResolution, exportBugs, addComment, deleteBug } from '../controllers/bug.controller.js';
 import authenticate from '../middleware/authenticate.js';
 import authorize from '../middleware/authorize.js';
 import validate from '../middleware/validate.js';
@@ -23,7 +23,8 @@ const createBugSchema = z.object({
     projectId: z.string(),
     severity: z.enum(['critical', 'high', 'medium', 'low']).optional(),
     priority: z.enum(['urgent', 'high', 'normal', 'low']).optional(),
-    tags: z.array(z.string()).optional()
+    tags: z.array(z.string()).optional(),
+    assignedTo: z.string().optional()
 });
 
 const statusSchema = z.object({
@@ -44,7 +45,7 @@ router.post('/', authorize('admin', 'tester'), validate(createBugSchema), create
 router.get('/', apiLimiter, getBugs);
 router.get('/:id', getBugById);
 
-router.delete('/:id', authorize('admin'), (req, res) => res.json({ success: true, message: 'Delete mocked' }));
+router.delete('/:id', authorize('admin', 'tester'), deleteBug);
 
 router.patch('/:id/status', validate(statusSchema), updateBugStatus);
 router.patch('/:id/assign', authorize('admin'), assignBug);

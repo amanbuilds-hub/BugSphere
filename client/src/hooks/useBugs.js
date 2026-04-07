@@ -1,7 +1,8 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRecoilState } from 'recoil';
 import { bugsAtom } from '../atoms/bugs.atom';
-import { getBugs, getBug, createBug, updateBugStatus, assignBug, addComment } from '../api/bugs.api';
+import { getBugs, getBug, createBug, updateBugStatus, assignBug, addComment, deleteBug } from '../api/bugs.api';
 
 /**
  * Hook for bug-related queries and mutations
@@ -15,14 +16,18 @@ export const useBugs = (id = null) => {
         queryKey: ['bugs', bugs.filters],
         queryFn: () => getBugs(bugs.filters),
         enabled: !id,
-        onSuccess: (data) => {
+    });
+
+    // Handle v5 removed onSuccess/onError
+    useEffect(() => {
+        if (bugList) {
             setBugs(prev => ({
                 ...prev,
-                list: data.data,
-                pagination: data.pagination
+                list: bugList.data,
+                pagination: bugList.pagination
             }));
         }
-    });
+    }, [bugList, setBugs]);
 
     // Single Bug
     const { data: bugDetail, isLoading: loadingDetail } = useQuery({
@@ -41,7 +46,11 @@ export const useBugs = (id = null) => {
 
     // Update Status
     const statusMutation = useMutation({
-        mutationFn: (data) => updateBugStatus(id, data),
+        mutationFn: (payload) => {
+            const targetId = payload.id || id;
+            const targetData = payload.data || payload; // If data is present, use it. Else use payload itself.
+            return updateBugStatus(targetId, targetData);
+        },
         onSuccess: () => {
             queryClient.invalidateQueries(['bug', id]);
             queryClient.invalidateQueries(['bugs']);
@@ -65,9 +74,17 @@ export const useBugs = (id = null) => {
         }
     });
 
+    // Delete Bug
+    const deleteMutation = useMutation({
+        mutationFn: deleteBug,
+        onSuccess: () => {
+            queryClient.invalidateQueries(['bugs']);
+        }
+    });
+
     return {
         bugList, loadingList, refetchBugs,
         bugDetail, loadingDetail,
-        createMutation, statusMutation, assignMutation, commentMutation
+        createMutation, statusMutation, assignMutation, commentMutation, deleteMutation
     };
 };

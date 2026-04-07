@@ -72,7 +72,7 @@ const ProjectList = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {projects.map(project => (
-                    <Link key={project._id} to={`/bugs?projectId=${project._id}`} className="glass p-6 rounded-2xl border-b-4 border-slate-200 dark:border-slate-800 hover:border-primary-500 transition-all hover:-translate-y-1 group">
+                    <Link key={project._id} to={`/projects/${project._id}`} className="glass p-6 rounded-2xl border-b-4 border-slate-200 dark:border-slate-800 hover:border-primary-500 transition-all hover:-translate-y-1 group">
                         <div className="flex justify-between items-start mb-6">
                             <div className="p-3 bg-primary-100 dark:bg-primary-950/40 text-primary-600 rounded-xl group-hover:bg-primary-600 group-hover:text-white transition-all">
                                 <Folder size={24} />

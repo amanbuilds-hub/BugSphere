@@ -1,7 +1,8 @@
 import express from 'express';
 import { z } from 'zod';
-import { register, login, refresh, setup2FA, verify2FA, logout } from '../controllers/auth.controller.js';
+import { register, login, refresh, logout, getUsers } from '../controllers/auth.controller.js';
 import authenticate from '../middleware/authenticate.js';
+import authorize from '../middleware/authorize.js';
 import validate from '../middleware/validate.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 
@@ -21,18 +22,26 @@ const loginSchema = z.object({
     password: z.string().min(1, 'Password is required')
 });
 
-const verify2FASchema = z.object({
-    token: z.string().length(6, 'TOTP must be 6 digits'),
-    userId: z.string().optional()
-});
-
 // Routes
 router.post('/register', validate(registerSchema), register);
 router.post('/login', authLimiter, validate(loginSchema), login);
 router.post('/refresh', refresh);
 router.post('/logout', authenticate, logout);
 
-router.post('/2fa/setup', authenticate, setup2FA);
-router.post('/2fa/verify', validate(verify2FASchema), verify2FA);
+router.get('/profile', authenticate, (req, res) => {
+    res.status(200).json({ success: true, data: req.user });
+});
+
+router.patch('/profile', authenticate, async (req, res) => {
+    const { name, skills, notificationPrefs } = req.body;
+    if (name) req.user.name = name;
+    if (skills) req.user.skills = skills;
+    if (notificationPrefs) req.user.notificationPrefs = { ...req.user.notificationPrefs.toObject(), ...notificationPrefs };
+
+    await req.user.save();
+    res.status(200).json({ success: true, data: req.user });
+});
+
+router.get('/users', authenticate, authorize('admin'), getUsers);
 
 export default router;

@@ -1,7 +1,7 @@
 import { useRecoilState } from 'recoil';
 import { useNavigate } from 'react-router-dom';
 import { authAtom } from '../atoms/auth.atom';
-import { logIn as apiLogIn, registerUser as apiRegister, logOut as apiLogout, verify2FA as apiVerify2FA } from '../api/auth.api';
+import { logIn as apiLogIn, registerUser as apiRegister, logOut as apiLogout } from '../api/auth.api';
 
 /**
  * Hook for authentication state and management
@@ -13,9 +13,7 @@ export const useAuth = () => {
     const login = async (credentials) => {
         try {
             const response = await apiLogIn(credentials);
-            if (response.data.twoFactorRequired) {
-                return { twoFactorRequired: true, userId: response.data.userId };
-            }
+
 
             const { user, accessToken, refreshToken } = response.data;
             updateAuthState(user, accessToken, refreshToken);
@@ -35,15 +33,7 @@ export const useAuth = () => {
         }
     };
 
-    const verify2FA = async (token, userId) => {
-        try {
-            const response = await apiVerify2FA({ token, userId });
-            const { user, accessToken, refreshToken } = response.data;
-            updateAuthState(user, accessToken, refreshToken);
-        } catch (error) {
-            throw error;
-        }
-    };
+
 
     const logout = async () => {
         try {
@@ -70,5 +60,5 @@ export const useAuth = () => {
         });
     };
 
-    return { auth, login, register, logout, verify2FA };
+    return { auth, login, register, logout };
 };

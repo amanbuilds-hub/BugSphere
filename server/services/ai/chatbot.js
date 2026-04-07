@@ -36,13 +36,20 @@ User: ${userMessage}`;
 
         if (response) {
             try {
-                const result = JSON.parse(response.replace(/```json/g, '').replace(/```/g, ''));
+                // Better JSON extraction regex
+                const jsonMatch = response.match(/\{[\s\S]*\}/);
+                const result = JSON.parse(jsonMatch ? jsonMatch[0] : response);
+
                 return {
-                    reply: result.reply,
+                    reply: result.reply || response,
                     suggestedActions: result.suggestedActions || []
                 };
             } catch (parseError) {
-                logger.error(`Failed to parse AI chatbot response: ${parseError.message}`);
+                logger.warn(`AI response wasn't pure JSON, falling back to raw text.`);
+                return {
+                    reply: response,
+                    suggestedActions: ["Close", "Assign to me"]
+                };
             }
         }
         return { reply: 'AI helper is unavailable. Please try again later.', suggestedActions: [] };

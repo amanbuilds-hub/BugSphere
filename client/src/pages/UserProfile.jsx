@@ -1,12 +1,37 @@
-import React from 'react';
-import { useRecoilValue } from 'recoil';
+import React, { useState } from 'react';
+import { useRecoilState } from 'recoil';
 import { authAtom } from '../atoms/auth.atom';
-import { User, Mail, Shield, ShieldCheck, Briefcase, Calendar, Edit, Settings } from 'lucide-react';
+import { User, Mail, Shield, ShieldCheck, Briefcase, Calendar, Edit, Settings, Save, X, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { updateProfile } from '../api/auth.api';
 
 const UserProfile = () => {
-    const auth = useRecoilValue(authAtom);
+    const [auth, setAuth] = useRecoilState(authAtom);
     const user = auth.user;
+    const [isEditing, setIsEditing] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    const { register, handleSubmit, formState: { errors } } = useForm({
+        defaultValues: {
+            name: user?.name || '',
+            email: user?.email || ''
+        }
+    });
+
+    const onSubmit = async (data) => {
+        setLoading(true);
+        try {
+            const res = await updateProfile(data);
+            setAuth(prev => ({ ...prev, user: { ...prev.user, ...res.data } }));
+            setIsEditing(false);
+        } catch (err) {
+            console.error(err);
+            alert(err.response?.data?.message || 'Update failed');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     if (!user) return null;
 
@@ -37,10 +62,32 @@ const UserProfile = () => {
                     </div>
                 </div>
                 <div className="flex items-center space-x-3 pb-2">
-                    <button className="flex items-center space-x-2 bg-white dark:bg-secondary-900 border border-secondary-200 dark:border-secondary-800 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition-all active:scale-95">
-                        <Edit size={16} className="text-slate-500" />
-                        <span>Edit Profile</span>
-                    </button>
+                    {!isEditing ? (
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="flex items-center space-x-2 bg-white dark:bg-secondary-900 border border-secondary-200 dark:border-secondary-800 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition-all active:scale-95"
+                        >
+                            <Edit size={16} className="text-slate-500" />
+                            <span>Edit Profile</span>
+                        </button>
+                    ) : (
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={handleSubmit(onSubmit)}
+                                disabled={loading}
+                                className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                                <span>Save Changes</span>
+                            </button>
+                            <button
+                                onClick={() => setIsEditing(false)}
+                                className="flex items-center justify-center p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl hover:bg-slate-200 transition-all"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                    )}
                     <Link to="/settings" className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary-500/20 transition-all active:scale-95">
                         <Settings size={16} />
                         <span>Security Settings</span>
@@ -60,11 +107,27 @@ const UserProfile = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                             <div className="space-y-1">
                                 <p className="text-xs font-black uppercase text-slate-400 tracking-tighter ml-1">Full Name</p>
-                                <div className="bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800">{user.name}</div>
+                                {isEditing ? (
+                                    <input
+                                        {...register('name', { required: 'Name is required' })}
+                                        className="w-full bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800 outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                ) : (
+                                    <div className="bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800">{user.name}</div>
+                                )}
+                                {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
                             </div>
                             <div className="space-y-1">
                                 <p className="text-xs font-black uppercase text-slate-400 tracking-tighter ml-1">Email ID</p>
-                                <div className="bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800">{user.email}</div>
+                                {isEditing ? (
+                                    <input
+                                        {...register('email', { required: 'Email is required' })}
+                                        className="w-full bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800 outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                ) : (
+                                    <div className="bg-slate-50 dark:bg-black/20 p-4 rounded-xl text-sm font-bold border border-slate-100 dark:border-slate-800">{user.email}</div>
+                                )}
+                                {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
                             </div>
                             <div className="space-y-1">
                                 <p className="text-xs font-black uppercase text-slate-400 tracking-tighter ml-1">Assigned Role</p>

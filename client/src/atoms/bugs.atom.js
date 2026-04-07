@@ -12,6 +12,7 @@ export const bugsAtom = atom({
             assignee: '',
             project: '',
             search: '',
+            page: 1,
             sort: '-createdAt'
         }
     },

@@ -8,18 +8,21 @@ import {
     Bot, Clock, AlertCircle, MessageSquare,
     Send, User, Calendar, CheckSquare,
     Sparkles, History, ChevronRight, FileText,
-    UserCheck, Loader2, ArrowLeft
+    UserCheck, Loader2, ArrowLeft, Trash2
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const BugDetail = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
     const auth = useRecoilValue(authAtom);
-    const { bugDetail, loadingDetail, statusMutation, commentMutation } = useBugs(id);
+    const { bugDetail, loadingDetail, statusMutation, commentMutation, assignMutation, deleteMutation } = useBugs(id);
     const { sendMessage, chatHistory, fetchResolutionSuggestion, loading: aiLoading } = useAI(id);
 
     const [newComment, setNewComment] = useState('');
     const [chatMessage, setChatMessage] = useState('');
     const [aiSuggestion, setAiSuggestion] = useState(null);
+    const [isAssigning, setIsAssigning] = useState(false);
 
     if (loadingDetail) return <div className="animate-pulse space-y-6">
         <div className="h-8 w-1/3 bg-slate-200 dark:bg-slate-800 rounded"></div>
@@ -42,6 +45,21 @@ const BugDetail = () => {
         commentMutation.mutate({ text: newComment }, {
             onSuccess: () => setNewComment('')
         });
+    };
+
+    const handleAssigneeChange = (userId) => {
+        if (!userId) return;
+        assignMutation.mutate({ userId }, {
+            onSuccess: () => setIsAssigning(false)
+        });
+    };
+
+    const handleDelete = () => {
+        if (window.confirm('Are you sure you want to delete this bug permanently?')) {
+            deleteMutation.mutate(id, {
+                onSuccess: () => navigate('/bugs')
+            });
+        }
     };
 
     const handleChat = async (e) => {
@@ -86,10 +104,40 @@ const BugDetail = () => {
                         <option value="reopened">Reopened</option>
                     </select>
                     {['admin', 'tester'].includes(auth.user?.role) && (
-                        <button className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition-all flex items-center space-x-2 shadow-lg shadow-primary-500/20 active:scale-95">
-                            <UserCheck size={16} />
-                            <span className="hidden sm:inline">Change Assignee</span>
-                        </button>
+                        <div className="flex items-center space-x-2">
+                            {isAssigning ? (
+                                <select
+                                    autoFocus
+                                    onBlur={() => setIsAssigning(false)}
+                                    onChange={(e) => handleAssigneeChange(e.target.value)}
+                                    className="bg-primary-50 dark:bg-primary-950/20 border border-primary-200 dark:border-primary-800 px-4 py-2 rounded-xl text-sm font-bold text-primary-600 outline-none focus:ring-2 focus:ring-primary-500 animate-fade-in"
+                                >
+                                    <option value="">Select Developer</option>
+                                    {bug.projectId?.members?.filter(m => m.userId.role === 'developer').map(m => (
+                                        <option key={m.userId._id} value={m.userId._id}>{m.userId.name}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <button
+                                    onClick={() => setIsAssigning(true)}
+                                    className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center space-x-2 active:scale-95 border border-slate-200 dark:border-slate-800 tracking-tight"
+                                >
+                                    <UserCheck size={16} />
+                                    <span className="hidden sm:inline">Change Assignee</span>
+                                </button>
+                            )}
+
+                            {['admin', 'tester'].includes(auth.user?.role) && (
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={deleteMutation.isLoading}
+                                    className="p-2.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-200 dark:border-red-900/30 rounded-xl transition-all active:scale-95 disabled:opacity-50 shadow-sm"
+                                    title="Delete Bug permanently"
+                                >
+                                    {deleteMutation.isLoading ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
@@ -228,7 +276,7 @@ const BugDetail = () => {
                             <div className="flex justify-between items-center">
                                 <span className="text-sm text-slate-500">Severity</span>
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${bug.severity === 'critical' ? 'border-red-500 text-red-500' :
-                                        bug.severity === 'high' ? 'border-orange-500 text-orange-500' : 'border-blue-500 text-blue-500'
+                                    bug.severity === 'high' ? 'border-orange-500 text-orange-500' : 'border-blue-500 text-blue-500'
                                     }`}>
                                     {bug.severity}
                                 </span>
@@ -275,8 +323,8 @@ const BugDetail = () => {
                             {chatHistory.map((chat, idx) => (
                                 <div key={idx} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[85%] p-3 rounded-2xl text-[13px] shadow-sm ${chat.role === 'user'
-                                            ? 'bg-primary-600 text-white rounded-tr-none'
-                                            : 'bg-white dark:bg-secondary-800 border border-slate-100 dark:border-slate-700 rounded-tl-none'
+                                        ? 'bg-primary-600 text-white rounded-tr-none'
+                                        : 'bg-white dark:bg-secondary-800 border border-slate-100 dark:border-slate-700 rounded-tl-none'
                                         }`}>
                                         {chat.content}
                                     </div>

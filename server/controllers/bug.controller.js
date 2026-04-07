@@ -18,14 +18,16 @@ import logger from '../utils/logger.js';
  * @access  Tester/Admin
  */
 export const createBug = asyncHandler(async (req, res) => {
-    const { title, description, projectId, severity, priority, tags, stepsToReproduce, expectedBehavior, actualBehavior } = req.body;
+    const { title, description, projectId, severity, priority, tags, stepsToReproduce, expectedBehavior, actualBehavior, assignedTo } = req.body;
 
     // 1. Ownership/Project Check
     const project = await Project.findById(projectId);
     if (!project) throw new ApiError(404, 'PROJ_001', 'Project not found');
 
-    const isMember = project.members.some(m => m.userId.toString() === req.user._id.toString());
-    if (!isMember) throw new ApiError(403, 'PROJ_002', 'Not a project member');
+    if (req.user.role !== 'admin') {
+        const isMember = project.members.some(m => m.userId.toString() === req.user._id.toString());
+        if (!isMember) throw new ApiError(403, 'PROJ_002', 'Not a project member');
+    }
 
     // 2. AI Duplicate Detection (Internal check - don't block, just note)
     const duplicateCheck = await detectDuplicate(title, description);
@@ -39,12 +41,17 @@ export const createBug = asyncHandler(async (req, res) => {
         actualBehavior,
         projectId,
         reportedBy: req.user._id,
+        assignedTo,
         severity: severity || 'medium',
         priority: priority || 'normal',
         tags: tags || [],
         'aiMetadata.duplicateOf': duplicateCheck.similarBugId,
         'aiMetadata.confidence': duplicateCheck.confidence
     });
+
+    if (assignedTo) {
+        await User.findByIdAndUpdate(assignedTo, { $inc: { activeIssueCount: 1 } });
+    }
 
     // 4. Update Project Bug Count
     await Project.findByIdAndUpdate(projectId, { $inc: { bugCount: 1 } });
@@ -81,6 +88,21 @@ export const getBugs = asyncHandler(async (req, res) => {
     if (projectId) query.projectId = projectId;
     if (search) query.$text = { $search: search };
 
+    // Visibility Layer: Only projects user belongs to (unless admin)
+    if (req.user.role !== 'admin') {
+        const userProjects = await Project.find({ 'members.userId': req.user._id }).select('_id');
+        const projectIds = userProjects.map(p => p._id);
+
+        if (query.projectId) {
+            if (!projectIds.some(id => id.toString() === query.projectId)) {
+                // Requested a specific project they don't belong to
+                return res.status(200).json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
+            }
+        } else {
+            query.projectId = { $in: projectIds };
+        }
+    }
+
     // Developer Layer: Only view assigned bugs unless admin/tester
     if (req.user.role === 'developer' && !assignedTo) {
         query.assignedTo = req.user._id;
@@ -113,11 +135,20 @@ export const getBugs = asyncHandler(async (req, res) => {
  */
 export const getBugById = asyncHandler(async (req, res) => {
     const bug = await Bug.findById(req.params.id)
-        .populate('reportedBy projectId assignedTo watchers', 'name email role')
+        .populate('reportedBy projectId assignedTo watchers', 'name email role members')
         .populate('comments.userId', 'name role')
         .populate('aiMetadata.duplicateOf', 'title status');
 
     if (!bug) throw new ApiError(404, 'BUG_001', 'Bug not found');
+
+    // Visibility Check: User must be member of project
+    if (req.user.role !== 'admin') {
+        const project = await Project.findById(bug.projectId?._id || bug.projectId);
+        const isMember = project?.members.some(m => m.userId.toString() === req.user._id.toString());
+        if (!isMember) {
+            throw new ApiError(403, 'PROJ_002', 'Not a project member');
+        }
+    }
 
     // Trigger AI Summary if not exists
     if (!bug.aiMetadata?.summary) {
@@ -136,6 +167,15 @@ export const updateBugStatus = asyncHandler(async (req, res) => {
     const { status, note } = req.body;
     const bug = await Bug.findById(req.params.id);
     if (!bug) throw new ApiError(404, 'BUG_001', 'Bug not found');
+
+    // Visibility Check: User must be member of project
+    if (req.user.role !== 'admin') {
+        const project = await Project.findById(bug.projectId);
+        const isMember = project?.members.some(m => m.userId.toString() === req.user._id.toString());
+        if (!isMember) {
+            throw new ApiError(403, 'PROJ_002', 'Not a project member');
+        }
+    }
 
     // 1. Role Validation (Tester/Developer restricted transitions)
     // Layer 3 Enforcement logic happens here.
@@ -300,4 +340,28 @@ export const addComment = asyncHandler(async (req, res) => {
     const addedComment = populatedBug.comments[populatedBug.comments.length - 1];
 
     res.status(201).json({ success: true, data: addedComment });
+});
+
+/**
+ * @desc    Delete bug (Admin Only)
+ * @route   DELETE /api/bugs/:id
+ * @access  Admin
+ */
+export const deleteBug = asyncHandler(async (req, res) => {
+    const bug = await Bug.findById(req.params.id);
+    if (!bug) throw new ApiError(404, 'BUG_001', 'Bug not found');
+
+    // Decrement activeIssueCount for assigned developer
+    if (bug.assignedTo) {
+        await User.findByIdAndUpdate(bug.assignedTo, { $inc: { activeIssueCount: -1 } });
+    }
+
+    // Decrement Project Bug Count
+    if (bug.projectId) {
+        await Project.findByIdAndUpdate(bug.projectId, { $inc: { bugCount: -1 } });
+    }
+
+    await Bug.deleteOne({ _id: req.params.id });
+
+    res.status(200).json({ success: true, message: 'Bug deleted successfully' });
 });

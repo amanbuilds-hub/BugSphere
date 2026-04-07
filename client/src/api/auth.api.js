@@ -18,12 +18,16 @@ export const logOut = async (data) => {
     return response.data;
 };
 
-export const setup2FA = async () => {
-    const response = await apiClient.post('/auth/2fa/setup');
+export const getProfile = async () => {
+    const response = await apiClient.get('/auth/profile');
     return response.data;
-};
+}
 
-export const verify2FA = async (data) => {
-    const response = await apiClient.post('/auth/2fa/verify', data);
+export const updateProfile = async (data) => {
+    const response = await apiClient.patch('/auth/profile', data);
+    return response.data;
+}
+export const getUsers = async (search = '') => {
+    const response = await apiClient.get(`/auth/users?search=${search}`);
     return response.data;
 };

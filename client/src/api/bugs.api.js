@@ -50,3 +50,7 @@ export const exportBugs = async (format, ids) => {
     });
     return response.data;
 };
+export const deleteBug = async (id) => {
+    const response = await apiClient.delete(`/bugs/${id}`);
+    return response.data;
+};

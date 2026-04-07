@@ -12,6 +12,7 @@ import BugList from './pages/BugList';
 import BugDetail from './pages/BugDetail';
 import CreateBug from './pages/CreateBug';
 import ProjectList from './pages/ProjectList';
+import ProjectDetail from './pages/ProjectDetail';
 import Analytics from './pages/Analytics';
 import UserProfile from './pages/UserProfile';
 import Settings from './pages/Settings';
@@ -54,6 +55,7 @@ const App = () => {
                                 <Route path="/bugs/:id" element={<BugDetail />} />
 
                                 <Route path="/projects" element={<ProjectList />} />
+                                <Route path="/projects/:id" element={<ProjectDetail />} />
 
                                 <Route path="/profile" element={<UserProfile />} />
                                 <Route path="/settings" element={<Settings />} />
